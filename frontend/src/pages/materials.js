@@ -1,0 +1,20 @@
+import{heading}from'../components/common/header.js';import{table}from'../components/common/table.js';import{esc,fmt,time}from'../utils/format.js';import{KINDS,DIRECTIONS}from'../constants/enums.js';import{store}from'../stores/business.js';
+function docTable(docs){if(!docs.length)return '<div class="empty">尚无单据。先登记入库，再领料、退料；支持补录旧业务日期的单据。</div>';return '<div class="table-wrap"><table><thead><tr><th>单号</th><th>类型</th><th>业务日期</th><th>数量</th><th>单价分</th><th>归集金额分</th><th>原领料单</th><th>登记人</th><th>操作</th></tr></thead><tbody>'+docs.map(x=>`<tr><td>${esc(x.doc_no)}</td><td>${KINDS[x.kind]||esc(x.kind)}</td><td>${esc(x.biz_date)}</td><td>${fmt(x.qty)}</td><td>${x.unit_cost_cents==null?'—':fmt(x.unit_cost_cents)}</td><td>${fmt(x.allocated_cents)}</td><td>${esc(x.link_no||'—')}</td><td>${esc(x.actor)}</td><td><button class="doc-lines" data-id="${x.id}" data-no="${esc(x.doc_no)}">批次明细</button> <button class="doc-delete" data-id="${x.id}">冲销</button></td></tr>`).join('')+'</tbody></table></div>'}
+export function materials(c,d,selected,mat){
+ const accounts=d.materials,cur=mat.name?accounts.find(a=>a.material===mat.name):null,detail=mat.detail;
+ let html=heading('MATERIAL LEDGER / 06','材料批次台账','材料费按实际领料归集：同物料按业务时间与单号排序，领料先进先出扣减批次，退料反序退回原批次整数分；补录旧单只从最早变动处重算，算完一次性切换。');
+ html+='<h2>物料台账</h2>'+table(accounts.map(a=>({物料:a.material,状态:a.status==='ok'?'正常':'待修正',领用数量:a.totals.issued_qty??0,领用金额分:a.totals.issued_cents??0,退料数量:a.totals.returned_qty??0,退料金额分:a.totals.returned_cents??0,结存数量:a.totals.on_hand_qty??0,结存金额分:a.totals.on_hand_cents??0,版本:a.version,最近重算:a.recalc&&a.recalc.at?time(a.recalc.at):'—'})));
+ if(accounts.length)html+='<p>'+accounts.map(a=>`<button class="select-material" data-name="${esc(a.material)}">查看 ${esc(a.material)}</button>`).join('')+'</p>';
+ if(store.session.role==='admin')html+='<p><button id="reconcile-materials">全量核对所有物料（幂等）</button></p>';
+ html+=`<details open><summary>登记单据（入库/领料/退料，可补录旧单；单号全局唯一，重复提交不会产生新单）</summary><form id="material-form"><div class="form-grid"><label>物料<input name="material" list="material-names" value="${esc(cur?cur.material:'')}" required><datalist id="material-names">${accounts.map(a=>`<option value="${esc(a.material)}">`).join('')}</datalist></label><label>类型<select name="kind"><option value="in">入库</option><option value="out">领料</option><option value="ret">退料</option></select></label><label>单号<input name="doc_no" placeholder="RK-2026-003" required></label><label>业务日期<input name="biz_date" type="date" value="2026-11-20" required></label><label>数量<input name="qty" type="number" min="1" step="1" required></label><label>单价（分，仅入库）<input name="unit_cost_cents" type="number" min="0" step="1"></label><label>原领料单号（仅退料）<input name="link_no" placeholder="LJ-2026-001"></label></div><button>保存并重算</button></form></details>`;
+ if(cur&&detail){
+  if(cur.status==='error')html+=`<p class="error">${esc(cur.error)}（已生效账保持上一致版本，冲销错单或补齐入库后自动恢复）</p>`;
+  if(cur.recalc&&cur.recalc.at)html+=`<p class="method">上次重算：从第${(cur.recalc.from_index??0)+1}笔起回放${cur.recalc.replayed??0}笔（最早分歧点第${(cur.recalc.divergence??0)+1}笔）· 台账版本 v${cur.version}</p>`;
+  html+=`<p><button id="verify-material" data-name="${esc(cur.material)}">核对增量与全量</button></p>`;
+  if(mat.verify)html+=mat.verify.match?`<p class="method">核对通过：增量账与全量重算一致（${mat.verify.checked.docs}张单 / ${mat.verify.checked.lines}行明细 / ${mat.verify.checked.batches}个批次）</p>`:`<p class="error">核对不一致：${mat.verify.differences.map(esc).join('；')}</p>`;
+  html+=`<h2>${esc(cur.material)} · 单据（按业务时间+单号）</h2>`+docTable(detail.docs);
+  if(mat.lines)html+=`<h3>单号 ${esc(mat.lines.doc_no)} 的批次与金额</h3>`+table(mat.lines.rows.map(l=>({批次单号:l.batch_doc_no,方向:DIRECTIONS[l.direction]||l.direction,数量:l.qty,单价分:l.unit_cost_cents,金额分:l.amount_cents,原领料行号:l.direction==='return'?l.issue_line_seq+1:'—'})));
+  html+='<h2>批次现量</h2>'+table(detail.batches.map(b=>({入库单号:b.doc_no,业务日期:b.biz_date,单价分:b.unit_cost_cents,剩余数量:b.qty,结存金额分:b.amount_cents})));
+ }else if(accounts.length)html+='<p class="empty">点击上方物料名查看单据、批次与领退明细。</p>';
+ return html;
+}

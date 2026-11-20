@@ -1,6 +1,12 @@
 import {request} from './client.js';
-export const loadAll=async()=>Object.fromEntries(await Promise.all(['sources','periods','policies','runs','schedules','deliveries','audits'].map(async k=>[k,await request('/'+k)])));
+export const loadAll=async()=>Object.fromEntries(await Promise.all(['sources','periods','policies','runs','schedules','deliveries','audits','materials'].map(async k=>[k,await request('/'+k)])));
 export const saveSource=(data,id)=>request('/sources'+(id?'/'+id:''),id?'PUT':'POST',{data});
 export const savePolicy=data=>request('/policies','POST',{data});
 export const submitRun=data=>request('/runs','POST',data);
 export const approveRun=(id,note)=>request('/runs/'+id+'/approve','POST',{note});
+export const materialDetail=name=>request('/materials/'+encodeURIComponent(name)+'/detail');
+export const postMaterialDoc=data=>request('/material-docs','POST',{data});
+export const deleteMaterialDoc=id=>request('/material-docs/'+id,'DELETE');
+export const docLines=id=>request('/material-docs/'+id+'/lines');
+export const verifyMaterial=name=>request('/materials/'+encodeURIComponent(name)+'/verify','POST',{});
+export const reconcileMaterials=()=>request('/materials/reconcile','POST',{});
