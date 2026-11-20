@@ -1,0 +1,45 @@
+{
+  "id": "gb-0046",
+  "direction": "报表与分摊",
+  "title": "砺禾项目成本归集簿",
+  "slug": "cost-apportion",
+  "algorithm": "按工时权重分摊公共成本、整数分最大余数守恒与差异透视",
+  "entities": "CostPeriod / CostEntry / AllocationRule / AllocationRun / DeliverySchedule",
+  "scenario": "内部研究项目工时与费用→精确分摊和透视→站内月结交付；金额用整数分，定时worker站内交付",
+  "visual": "会计传票、赭黄酒红",
+  "oracle": "1分三权重守恒与稳定tie；零权重拒绝；透视总数等于源数",
+  "frontend": 18250,
+  "backend": 19250,
+  "db_port": 17750,
+  "database": "PostgreSQL16",
+  "batch": 2,
+  "label": "费用底稿",
+  "policy_label": "工时分摊规则",
+  "fields": {
+    "period": "期间",
+    "department": "部门",
+    "category": "费用类别",
+    "amount_cents": "金额（分）"
+  },
+  "example": {
+    "period": "2026-11",
+    "department": "公共",
+    "category": "仪器维护",
+    "amount_cents": 150001
+  },
+  "policy": {
+    "version": "工时口径-v1",
+    "weights": {
+      "光学研究": 37,
+      "材料研究": 41,
+      "工艺研究": 22
+    }
+  },
+  "colors": [
+    "0.94 0.035 88",
+    "0.26 0.07 23",
+    "0.52 0.13 48"
+  ],
+  "caption": "整数分守恒 · 公共成本逐笔可追溯",
+  "unit": "分"
+}
